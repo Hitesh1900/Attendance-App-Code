@@ -7,8 +7,8 @@ export default (sequelize) => {
     latitude: { type: DataTypes.FLOAT, allowNull: false },
     longitude: { type: DataTypes.FLOAT, allowNull: false },
   }, {
-    freezeTableName: true, // Prevent Sequelize from pluralizing the table name
-    tableName: "attendances", // Explicitly set the table name
+    freezeTableName: true, 
+    tableName: "attendances", 
   });
 
   return Attendance;

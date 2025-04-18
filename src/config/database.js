@@ -13,7 +13,7 @@ if (!DB_URL) {
 
 export const sequelize = new Sequelize(DB_URL, {
   dialect: "postgres",
-  logging: console.log,
+  
 });
 
 const Attendance = attendanceModel(sequelize);

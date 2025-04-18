@@ -2,7 +2,7 @@ import { Attendance } from "../models/attendanceModel.js";
 
 export async function markAttendance(userId, latitude, longitude) {
   const officeLocations = [
-    { lat: 17.732501, lng: 83.321139 },
+    { lat: 17.7323140, lng: 83.321122},
     { lat: 21.734321, lng: 21.734321 },
     { lat: 87.730100, lng: 33.322200 },
     { lat: 10.733000, lng: 83.318000 },
@@ -27,4 +27,5 @@ export async function markAttendance(userId, latitude, longitude) {
   if (distance > 10) throw new Error("User is not within the 10-meter range");
 
   return await Attendance.create({ userId, latitude, longitude });
+  
 }
