@@ -2,7 +2,7 @@ import { Attendance } from "../models/attendanceModel.js";
 
 export async function markAttendance(userId, latitude, longitude) {
   const officeLocations = [
-    { lat: 17.7323140, lng: 83.321122},
+    { lat: 17.732463736023988, lng: 83.3211686227004 },
     { lat: 21.734321, lng: 21.734321 },
     { lat: 87.730100, lng: 33.322200 },
     { lat: 10.733000, lng: 83.318000 },

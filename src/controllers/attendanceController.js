@@ -5,7 +5,7 @@ export const markAttendance = async (req, res) => {
     const { userId, latitude, longitude } = req.body;
 
     const officeLocations = [
-      { name: "Main Office", lat: 17.7323140, lng: 83.321122 },
+      { name: "Main Office", lat: 17.732463736023988, lng: 83.3211686227004 },
       { name: "Branch A", lat: 21.734321, lng: 21.734321 },
       { name: "Branch B", lat: 87.730100, lng: 33.322200 },
       { name: "Branch C", lat: 10.733000, lng: 83.318000 },

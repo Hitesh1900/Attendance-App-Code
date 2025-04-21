@@ -12,9 +12,9 @@ const __dirname = path.dirname(__filename);
 const MODEL_PATH = path.join(__dirname, '..', 'model');
 
 export async function loadModels() {
-  await faceapi.nets.ssdMobilenetv1.loadFromDisk(MODEL_PATH);
+  await faceapi.nets.tinyFaceDetector.loadFromDisk(MODEL_PATH);
   await faceapi.nets.faceLandmark68Net.loadFromDisk(MODEL_PATH);
   await faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH);
 }
 
-export { faceapi, canvas };
+export { faceapi, canvas, MODEL_PATH };
