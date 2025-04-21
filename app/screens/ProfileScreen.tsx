@@ -103,7 +103,7 @@ const ProfileScreen = ({ route }: Props) => {
           <Text style={styles.buttonText}>Change Password</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, { backgroundColor: '#EF4444',borderColor:'#FFF', }]} onPress={handleLogout}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: '#EF4444', borderColor: 'white', borderWidth: 2, }]} onPress={handleLogout}>
           <Text style={[styles.buttonText, { color: '#FFF' }]}>Log out</Text>
         </TouchableOpacity>
       </View>
@@ -200,6 +200,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#2563EB',
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowOffset: { width: 0, height: 2 },

@@ -109,7 +109,7 @@ const AttendanceHistoryScreen = () => {
               showsVerticalScrollIndicator={false}
             >
               {history.slice(0, 5).map((item, index) => (
-                <View key={index.toString()} style={styles.card}>
+                <View key={index.toString()} style={[styles.card, { borderColor: '#2563EB' }]}>
                   <Text style={styles.text}>Date: {item.date}</Text>
                   <Text style={styles.text}>Latitude: {item.latitude}</Text>
                   <Text style={styles.text}>Longitude: {item.longitude}</Text>
@@ -224,6 +224,8 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: 'white',
+    borderColor: '#2563EB',
+    borderWidth: 2, 
     padding: 15,
     borderRadius: 8,
     marginBottom: 10,

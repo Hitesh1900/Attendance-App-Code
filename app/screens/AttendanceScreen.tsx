@@ -1,12 +1,22 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, Button, ActivityIndicator, StyleSheet, Alert, Image } from 'react-native';
+// AttendanceScreen.tsx
+
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  Button,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Image,
+} from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Camera } from 'expo-camera';
 import Webcam from 'react-webcam';
-import { freezeEnabled } from 'react-native-screens';
 
 type RootStackParamList = {
   Home: undefined;
@@ -22,32 +32,34 @@ const API_URL = 'http://localhost:5000';
 
 const AttendanceScreen = () => {
   const navigation = useNavigation<AttendanceScreenNavigationProp>();
-  
+
   const webcamRef = useRef<Webcam | null>(null);
+  const mobileCamRef = useRef<Camera | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [markingAttendance, setMarkingAttendance] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [markingAttendance, setMarkingAttendance] = useState(false);
   const [attendanceMessage, setAttendanceMessage] = useState<string | null>(null);
-  const [attendanceMarked, setAttendanceMarked] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<'Attendance' | 'History' | 'Profile'>('Attendance');
-  const [photoTaken, setPhotoTaken] = useState<string | null>(null); 
-  const [cameraOpen, setCameraOpen] = useState<boolean>(false); 
+  const [attendanceMarked, setAttendanceMarked] = useState(false);
+  const [activeTab, setActiveTab] = useState<'Home' | 'History' | 'Profile'>('Home');
+  const [photoTaken, setPhotoTaken] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState<boolean>(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const fetchAuthData = async () => {
-      const storedUserId = await AsyncStorage.getItem('userId');
-      const storedUsername = await AsyncStorage.getItem('username');
-      const storedToken = await AsyncStorage.getItem('authToken');
-      if (storedUserId) setUserId(storedUserId);
-      if (storedUsername) setUsername(storedUsername);
-      if (storedToken) setAuthToken(storedToken);
-    };
+    const init = async () => {
+      const [userId, username, token] = await Promise.all([
+        AsyncStorage.getItem('userId'),
+        AsyncStorage.getItem('username'),
+        AsyncStorage.getItem('authToken'),
+      ]);
+      if (userId) setUserId(userId);
+      if (username) setUsername(username);
+      if (token) setAuthToken(token);
 
-    const getLocation = async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setAttendanceMessage('Location permission denied. Please enable it in settings.');
@@ -55,19 +67,33 @@ const AttendanceScreen = () => {
         return;
       }
 
-      try {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-      } catch {
-        setAttendanceMessage('Unable to fetch location.');
-      } finally {
-        setLoading(false);
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+
+      if (Platform.OS !== 'web') {
+        const { status: camStatus } = await Camera.requestCameraPermissionsAsync();
+        setHasPermission(camStatus === 'granted');
       }
+
+      setLoading(false);
     };
 
-    fetchAuthData();
-    getLocation();
+    init();
   }, []);
+
+  const capturePhoto = async () => {
+    if (Platform.OS === 'web') {
+      const screenshot = webcamRef.current?.getScreenshot();
+      if (screenshot) setPhotoTaken(screenshot);
+    } else {
+      if (mobileCamRef.current) {
+        const photo = await mobileCamRef.current.takePictureAsync({ base64: true });
+        if (photo.base64) {
+          setPhotoTaken(`data:image/jpg;base64,${photo.base64}`);
+        }
+      }
+    }
+  };
 
   const markAttendance = async () => {
     if (!photoTaken) {
@@ -77,11 +103,12 @@ const AttendanceScreen = () => {
 
     setMarkingAttendance(true);
     setAttendanceMessage(null);
-    setCameraOpen(false); 
+    setCameraOpen(false);
 
     try {
       const storedUserId = await AsyncStorage.getItem('userId');
       const storedToken = await AsyncStorage.getItem('authToken');
+
       if (!storedUserId || !storedToken) {
         setAttendanceMessage('Authentication error. Please log in again.');
         setMarkingAttendance(false);
@@ -94,7 +121,7 @@ const AttendanceScreen = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${storedToken}`,
         },
-        body: JSON.stringify({ image: photoTaken }), 
+        body: JSON.stringify({ image: photoTaken }),
       });
 
       const faceData = await faceResponse.json();
@@ -134,15 +161,6 @@ const AttendanceScreen = () => {
     }
   };
 
-  const capturePhoto = () => {
-    if (webcamRef.current) {
-      const screenshot = webcamRef.current.getScreenshot();
-      if (screenshot) {
-        setPhotoTaken(screenshot);
-      }
-    }
-  };
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>GRAB YOUR ATTENDANCE</Text>
@@ -168,28 +186,71 @@ const AttendanceScreen = () => {
           )}
 
           {cameraOpen && (
-            <Webcam
-              audio={false}
-              height={240}
-              width="100%"
-              screenshotFormat="image/jpeg"
-              videoConstraints={{ facingMode: 'user' }}
-              ref={webcamRef}
+            <View style={{ alignItems: 'center', marginBottom: 10 }}>
+              {Platform.OS === 'web' ? (
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  height={240}
+                  width={320}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={{ facingMode: 'user' }}
+                />
+              ) : hasPermission ? (
+                <Camera
+                  ref={mobileCamRef}
+                  style={{ width: 300, height: 240 }}
+                  type={Camera.Constants.Type.front}
+                />
+              ) : (
+                <Text>Camera permission not granted.</Text>
+              )}
+              <Button
+                title="Capture Photo"
+                onPress={() => {
+                  capturePhoto();
+                  setCameraOpen(false);
+                }}
+                color="#0EA5E9"
+              />
+            </View>
+          )}
+
+          {photoTaken && (
+            <Image
+              source={{ uri: photoTaken }}
+              style={{
+                width: 120,
+                height: 120,
+                alignSelf: 'center',
+                borderRadius: 8,
+                marginBottom: 10,
+              }}
             />
           )}
 
           <Button
-            title="Mark Attendance"
+            title="Start Attendance"
             onPress={() => {
-              setCameraOpen(true); 
-              capturePhoto();
-              markAttendance();
+              setCameraOpen(true);
+              setPhotoTaken(null);
             }}
             color="#2563EB"
             disabled={attendanceMarked || markingAttendance}
           />
 
-          {markingAttendance && <ActivityIndicator size="small" color="#2563EB" style={{ marginTop: 10 }} />}
+          {photoTaken && (
+            <Button
+              title="Submit Attendance"
+              onPress={markAttendance}
+              color="#22C55E"
+              disabled={markingAttendance || attendanceMarked}
+            />
+          )}
+
+          {markingAttendance && (
+            <ActivityIndicator size="small" color="#2563EB" style={{ marginTop: 10 }} />
+          )}
           {attendanceMessage && (
             <Text
               style={{
@@ -207,50 +268,45 @@ const AttendanceScreen = () => {
       )}
 
       <View style={styles.bottomNav}>
-        <View style={styles.iconContainer}>
-          <Ionicons
-            name={activeTab === 'Attendance' ? 'home' : 'home-outline'}
-            size={28}
-            color={activeTab === 'Attendance' ? '#2563EB' : '#333'}
-            onPress={() => {
-              setActiveTab('Attendance');
-              navigation.navigate('Attendance', { userId: userId || '' });
-            }}
-          />
-          <Text style={[styles.iconLabel, activeTab === 'Attendance' && { color: '#2563EB', fontWeight: 'bold' }]} >
-            Home
-          </Text>
-        </View>
-
-        <View style={styles.iconContainer}>
-          <Ionicons
-            name={activeTab === 'History' ? 'time' : 'time-outline'}
-            size={28}
-            color={activeTab === 'History' ? '#2563EB' : '#333'}
-            onPress={() => {
-              setActiveTab('History');
-              navigation.navigate('History', { userId: userId || '' });
-            }}
-          />
-          <Text style={[styles.iconLabel, activeTab === 'History' && { color: '#2563EB', fontWeight: 'bold' }]} >
-            History
-          </Text>
-        </View>
-
-        <View style={styles.iconContainer}>
-          <Ionicons
-            name={activeTab === 'Profile' ? 'person-circle' : 'person-circle-outline'}
-            size={28}
-            color={activeTab === 'Profile' ? '#2563EB' : '#333'}
-            onPress={() => {
-              setActiveTab('Profile');
-              navigation.navigate('Profile', { userId: userId || '' });
-            }}
-          />
-          <Text style={[styles.iconLabel, activeTab === 'Profile' && { color: '#2563EB', fontWeight: 'bold' }]} >
-            Profile
-          </Text>
-        </View>
+        {(['Home', 'History', 'Profile'] as const).map(tab => (
+          <View style={styles.iconContainer} key={tab}>
+            <Ionicons
+              name={
+                tab === 'Home'
+                  ? activeTab === tab
+                    ? 'home'
+                    : 'home-outline'
+                  : tab === 'History'
+                  ? activeTab === tab
+                    ? 'time'
+                    : 'time-outline'
+                  : activeTab === tab
+                  ? 'person-circle'
+                  : 'person-circle-outline'
+              }
+              size={28}
+              color={activeTab === tab ? '#2563EB' : '#333'}
+              onPress={() => {
+                setActiveTab(tab);
+                if (tab === 'Home') {
+                  navigation.navigate('Home');
+                } else if (tab === 'History') {
+                  navigation.navigate('History', { userId: userId || '' });
+                } else if (tab === 'Profile') {
+                  navigation.navigate('Profile', { userId: userId || '' });
+                }
+              }}
+            />
+            <Text
+              style={[
+                styles.iconLabel,
+                activeTab === tab && { color: '#2563EB', fontWeight: 'bold' },
+              ]}
+            >
+              {tab}
+            </Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -280,14 +336,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   card: {
-    width: '100%',
-    backgroundColor: 'white',
-    padding: 20,
+    backgroundColor: '#fff',
+    borderColor: '#2563EB',
+    borderWidth: 2,
     borderRadius: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    padding: 20,
   },
   label: {
     fontSize: 16,
@@ -302,11 +355,10 @@ const styles = StyleSheet.create({
   bottomNav: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fff',
     paddingVertical: 10,
-    borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+    borderTopWidth: 1,
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -318,6 +370,5 @@ const styles = StyleSheet.create({
   iconLabel: {
     fontSize: 12,
     color: '#333',
-    marginTop: 5,
   },
 });
