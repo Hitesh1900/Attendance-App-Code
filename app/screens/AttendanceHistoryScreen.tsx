@@ -95,7 +95,7 @@ const AttendanceHistoryScreen = () => {
       <View style={styles.container}>
         <Text style={styles.title}>Attendance History</Text>
         <Text style={styles.content}>Your Attendance records</Text>
-        <Text style={styles.contents}>(Your last 5 days records)</Text>
+        <Text style={styles.contents}>(Your last 7 days records)</Text>
 
         {loading ? (
           <ActivityIndicator size="large" color="#2563EB" style={{ flex: 1 }} />
@@ -108,7 +108,7 @@ const AttendanceHistoryScreen = () => {
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {history.slice(0, 5).map((item, index) => (
+              {history.slice(0, 7).map((item, index) => (
                 <View key={index.toString()} style={[styles.card, { borderColor: '#2563EB' }]}>
                   <Text style={styles.text}>Date: {item.date}</Text>
                   <Text style={styles.text}>Latitude: {item.latitude}</Text>
@@ -226,9 +226,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderColor: '#2563EB',
     borderWidth: 2, 
-    padding: 15,
+    padding: 3,
     borderRadius: 8,
-    marginBottom: 10,
+    marginBottom: 5,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 4,

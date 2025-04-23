@@ -1,15 +1,5 @@
-// AttendanceScreen.tsx
-
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  Button,
-  ActivityIndicator,
-  StyleSheet,
-  Platform,
-  Image,
-} from 'react-native';
+import {View,Text,Button,ActivityIndicator,StyleSheet,Platform,Image,} from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Camera } from 'expo-camera';
 import Webcam from 'react-webcam';
+import Canvas from 'react-native-canvas';
 
 type RootStackParamList = {
   Home: undefined;
@@ -94,6 +85,20 @@ const AttendanceScreen = () => {
       }
     }
   };
+  const handleCanvas = (canvas: any) => {
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        canvas.width = 320;
+        canvas.height = 240;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        ctx.strokeStyle = 'green';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(50, 50, 100, 100); 
+      }
+    }
+  };
 
   const markAttendance = async () => {
     if (!photoTaken) {
@@ -139,6 +144,8 @@ const AttendanceScreen = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${storedToken}`,
         },
+
+        
         body: JSON.stringify({
           userId: storedUserId,
           latitude: loc.coords.latitude,
@@ -197,11 +204,25 @@ const AttendanceScreen = () => {
                   videoConstraints={{ facingMode: 'user' }}
                 />
               ) : hasPermission ? (
-                <Camera
+                <View style={{ position: 'relative', width: 300, height: 240 }}>
+                  <Camera
                   ref={mobileCamRef}
-                  style={{ width: 300, height: 240 }}
-                  type={Camera.Constants.Type.front}
-                />
+                  style={{ width: '100%', height: '100%' }}
+                  type={Camera.Constants.Type.front as keyof typeof Camera.Constants.Type}
+                  />
+                  <Canvas
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                  }}
+                  ref={(canvas: Canvas | null) => {
+                    if (canvas) handleCanvas(canvas);
+                  }}
+                  />
+                </View>
               ) : (
                 <Text>Camera permission not granted.</Text>
               )}
@@ -230,13 +251,13 @@ const AttendanceScreen = () => {
           )}
 
           <Button
-            title="Start Attendance"
+            title="Mark Attendance"
             onPress={() => {
               setCameraOpen(true);
               setPhotoTaken(null);
             }}
             color="#2563EB"
-            disabled={attendanceMarked || markingAttendance}
+            disabled={attendanceMarked || markingAttendance || photoTaken !== null}
           />
 
           {photoTaken && (

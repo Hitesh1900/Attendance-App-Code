@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import {View,Text,StyleSheet,Button,TouchableOpacity,useColorScheme,Alert,} from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  TextInput,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
@@ -24,6 +32,12 @@ const ProfileScreen = ({ route }: Props) => {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string>('Profile');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -40,6 +54,8 @@ const ProfileScreen = ({ route }: Props) => {
       const data = await response.json();
       if (response.ok) {
         setUser(data.user);
+        setEditName(data.user.name);
+        setEditEmail(data.user.email);
       }
     };
 
@@ -52,42 +68,61 @@ const ProfileScreen = ({ route }: Props) => {
     navigation.navigate('Home');
   };
 
+  const handleUpdateProfile = async () => {
+    const token = await AsyncStorage.getItem('authToken');
+    const response = await fetch(`${API_URL}/api/auth/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId, name: editName, email: editEmail }),
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      setUser(data.user);
+      Alert.alert('Success', 'Profile updated successfully');
+      setModalVisible(false);
+    } else {
+      Alert.alert('Error', 'Failed to update profile');
+    }
+  };
+
+  const handleChangePassword = async () => {
+    const token = await AsyncStorage.getItem('authToken');
+    const response = await fetch(`${API_URL}/api/auth/change-password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ userId, currentPassword, newPassword }),
+    });
+
+    if (response.ok) {
+      Alert.alert('Success', 'Password changed successfully');
+      setPasswordModalVisible(false);
+      setCurrentPassword('');
+      setNewPassword('');
+    } else {
+      Alert.alert('Error', 'Failed to change password');
+    }
+  };
+
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: '#F5F5F5' },
-      ]}
-    >
-      <Text style={[styles.title, { color:'#333' }]}>
-        User Profile
-      </Text>
+    <View style={[styles.container, { backgroundColor: '#F5F5F5' }]}>
+      <Text style={[styles.title, { color: '#333' }]}>User Profile</Text>
 
       {user ? (
-        <View
-          style={[
-            styles.profileCard,
-            { backgroundColor:'#fff' },
-          ]}
-        >
+        <View style={[styles.profileCard, { backgroundColor: '#fff' }]}>
           <View style={styles.avatarContainer}>
-            <Ionicons
-              name="person-circle-outline"
-              size={80}
-              color={'#1E88E5'}
-            />
+            <Ionicons name="person-circle-outline" size={80} color={'#1E88E5'} />
           </View>
-
           <View style={styles.userInfo}>
-            <Text style={[styles.name, { color:'#333' }]}>
-              Name: {user.name}
-            </Text>
-            <Text style={[styles.detail, { color:'#555' }]}>
-              ID: {user.id}
-            </Text>
-            <Text style={[styles.detail, { color: '#555' }]}>
-              Email: {user.email}
-            </Text>
+            <Text style={[styles.name, { color: '#333' }]}>Name: {user.name}</Text>
+            <Text style={[styles.detail, { color: '#555' }]}>ID: {user.id}</Text>
+            <Text style={[styles.detail, { color: '#555' }]}>Email: {user.email}</Text>
           </View>
         </View>
       ) : (
@@ -95,15 +130,21 @@ const ProfileScreen = ({ route }: Props) => {
       )}
 
       <View style={styles.buttonGroup}>
-        <TouchableOpacity style={styles.button} onPress={() => Alert.alert('Update', 'Profile update feature coming soon.')}>
+        <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
           <Text style={styles.buttonText}>Update Profile</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.button} onPress={() => Alert.alert('Change Password', 'Password change feature coming soon.')}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={() => setPasswordModalVisible(true)}
+        >
           <Text style={styles.buttonText}>Change Password</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, { backgroundColor: '#EF4444', borderColor: 'white', borderWidth: 2, }]} onPress={handleLogout}>
+        <TouchableOpacity
+          style={[styles.button, { backgroundColor: '#EF4444', borderColor: 'white', borderWidth: 2 }]}
+          onPress={handleLogout}
+        >
           <Text style={[styles.buttonText, { color: '#FFF' }]}>Log out</Text>
         </TouchableOpacity>
       </View>
@@ -116,18 +157,10 @@ const ProfileScreen = ({ route }: Props) => {
             color={activeTab === 'Attendance' ? '#2563EB' : '#333'}
             onPress={() => {
               setActiveTab('Attendance');
-              navigation.navigate('Attendance', { userId: userId || '' });
+              navigation.navigate('Attendance', { userId });
             }}
           />
-          <Text
-            style={[
-              styles.iconLabel,
-              activeTab === 'Attendance' && {
-                color: '#2563EB',
-                fontWeight: 'bold',
-              },
-            ]}
-          >
+          <Text style={[styles.iconLabel, activeTab === 'Attendance' && { color: '#2563EB', fontWeight: 'bold' }]}>
             Home
           </Text>
         </View>
@@ -139,18 +172,10 @@ const ProfileScreen = ({ route }: Props) => {
             color={activeTab === 'History' ? '#2563EB' : '#333'}
             onPress={() => {
               setActiveTab('History');
-              navigation.navigate('History', { userId: userId || '' });
+              navigation.navigate('History', { userId });
             }}
           />
-          <Text
-            style={[
-              styles.iconLabel,
-              activeTab === 'History' && {
-                color: '#2563EB',
-                fontWeight: 'bold',
-              },
-            ]}
-          >
+          <Text style={[styles.iconLabel, activeTab === 'History' && { color: '#2563EB', fontWeight: 'bold' }]}>
             History
           </Text>
         </View>
@@ -162,22 +187,79 @@ const ProfileScreen = ({ route }: Props) => {
             color={activeTab === 'Profile' ? '#2563EB' : '#333'}
             onPress={() => {
               setActiveTab('Profile');
-              navigation.navigate('Profile', { userId: userId || '' });
+              navigation.navigate('Profile', { userId });
             }}
           />
-          <Text
-            style={[
-              styles.iconLabel,
-              activeTab === 'Profile' && {
-                color: '#2563EB',
-                fontWeight: 'bold',
-              },
-            ]}
-          >
+          <Text style={[styles.iconLabel, activeTab === 'Profile' && { color: '#2563EB', fontWeight: 'bold' }]}>
             Profile
           </Text>
         </View>
       </View>
+
+      <Modal animationType="slide" transparent={true} visible={modalVisible}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TextInput
+              placeholder="Name"
+              value={editName}
+              onChangeText={setEditName}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Email"
+              value={editEmail}
+              onChangeText={setEditEmail}
+              style={styles.input}
+              keyboardType="email-address"
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#2563EB' }]} onPress={handleUpdateProfile}>
+                <Text style={{ color: '#FFF' }}>Update</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#9CA3AF' }]} onPress={() => setModalVisible(false)}>
+                <Text style={{ color: '#FFF' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal animationType="slide" transparent={true} visible={passwordModalVisible}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Change Password</Text>
+            <TextInput
+              placeholder="Current Password"
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              style={styles.input}
+              secureTextEntry={true}
+            />
+            <TextInput
+              placeholder="New Password"
+              value={newPassword}
+              onChangeText={setNewPassword}
+              style={styles.input}
+              secureTextEntry={true}
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#2563EB' }]}
+                onPress={handleChangePassword}
+              >
+                <Text style={{ color: '#FFF' }}>Update</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#9CA3AF' }]}
+                onPress={() => setPasswordModalVisible(false)}
+              >
+                <Text style={{ color: '#FFF' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -236,8 +318,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'center',
     minWidth: 180,
-},
-  
+  },
   buttonText: {
     color: '#2563EB',
     fontSize: 16,
@@ -264,6 +345,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#333',
     marginTop: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 10,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
   },
 });
 
