@@ -5,7 +5,6 @@ import { faceapi, canvas, MODEL_PATH } from '../utilis/faceApiSetup.js';
 let modelsLoaded = false;
 let cachedDescriptors = null;
 
-
 async function loadModelsOnce() {
   if (!modelsLoaded) {
     await Promise.all([
@@ -30,7 +29,7 @@ function loadDescriptorsOnce() {
   }
 }
 
-async function resizeImage(image, width = 320, height = 240) {
+async function resizeImage(image, width = 320, height = 320) {
   const { createCanvas } = canvas;
   const resizedCanvas = createCanvas(width, height);
   const ctx = resizedCanvas.getContext('2d');
@@ -51,28 +50,36 @@ export async function compareWithAllUploadedImages(base64Image) {
     scoreThreshold: 0.5,    
   });
 
-  const capturedDetection = await faceapi
-    .detectSingleFace(resizedImage, options)
+  const capturedDetections = await faceapi
+    .detectAllFaces(resizedImage, options)
     .withFaceLandmarks()
-    .withFaceDescriptor();
+    .withFaceDescriptors();
 
-  if (!capturedDetection) {
-    return { match: false, message: 'No face detected in captured image' };
+  if (!capturedDetections || !capturedDetections.length) {
+    return { match: false, message: 'No faces detected in the image' };
   }
 
-  const capturedDescriptor = capturedDetection.descriptor;
+  const results = [];
 
-  for (const saved of cachedDescriptors) {
-    const distance = faceapi.euclideanDistance(capturedDescriptor, saved.descriptor);
-    if (distance < 0.6) {
-      return {
-        match: true,
-        message: `Face matched with ${saved.filename}`,
-        matchedFile: saved.filename,
-        distance,
-      };
+  for (const detection of capturedDetections) {
+    const capturedDescriptor = detection.descriptor;
+
+    for (const saved of cachedDescriptors) {
+      const distance = faceapi.euclideanDistance(capturedDescriptor, saved.descriptor);
+      if (distance < 0.6) {
+        results.push({
+          match: true,
+          message: `Face matched with ${saved.filename}`,
+          matchedFile: saved.filename,
+          distance,
+        });
+      }
     }
   }
 
-  return { match: false, message: 'No matching face found' };
+  if (results.length) {
+    return { match: true, matches: results };
+  }
+
+  return { match: false, message: 'No matching faces found in the image' };
 }

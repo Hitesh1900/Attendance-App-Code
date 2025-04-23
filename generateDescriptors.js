@@ -23,17 +23,20 @@ const saveDescriptors = async () => {
     const filePath = path.join(uploadsDir, file);
     const image = await canvas.loadImage(filePath);
 
-    const detection = await faceapi
-      .detectSingleFace(image, new faceapi.TinyFaceDetectorOptions())
+    const detections = await faceapi
+      .detectAllFaces(image, new faceapi.TinyFaceDetectorOptions())
       .withFaceLandmarks()
-      .withFaceDescriptor();
+      .withFaceDescriptors();
 
-    if (detection) {
-      descriptors.push({
-        filename: file,
-        descriptor: Array.from(detection.descriptor),
+    if (detections.length > 0) {
+      detections.forEach((detection, index) => {
+        descriptors.push({
+          filename: file,
+          faceIndex: index,
+          descriptor: Array.from(detection.descriptor),
+        });
       });
-      console.log(`✅ Processed: ${file}`);
+      console.log(`✅ Processed: ${file} (${detections.length} face(s) detected)`);
     } else {
       console.log(`⚠️  No face detected in ${file}`);
     }

@@ -1,6 +1,6 @@
 import { hash, compare } from "bcryptjs";
 import { sign } from "jsonwebtoken";
-import { User } from "../models/userModel.js"; // Directly import User model
+import { User } from "../models/userModel.js"; 
 require("dotenv").config();
 
 const register = async (name, email, password) => {
