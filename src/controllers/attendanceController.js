@@ -26,7 +26,7 @@ export const markAttendance = async (req, res) => {
 
     const nearbyLocation = officeLocations.find(loc => {
       const distance = getDistance(latitude, longitude, loc.lat, loc.lng);
-      return distance <= 30;
+      return distance <= 50;
     });
 
     if (!nearbyLocation) {
