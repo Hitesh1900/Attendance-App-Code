@@ -11,19 +11,15 @@ export async function verifyFace(req, res) {
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
     const result = await compareWithAllUploadedImages(base64Data);
 
-    if (result.match) {
-      return res.status(200).json({
-        status: 'success',
-        ...result,
-      });
-    } else {
-      return res.status(404).json({
-        status: 'failed',
-        ...result,
-      });
-    }
+    const statusCode = result.match ? 200 : 404;
+
+    return res.status(statusCode).json({
+      status: result.match ? 'success' : 'failed',
+      ...result,
+    });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('[verifyFace] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

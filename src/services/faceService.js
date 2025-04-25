@@ -3,7 +3,6 @@ import path from 'path';
 import { faceapi, canvas, MODEL_PATH } from '../utilis/faceApiSetup.js';
 
 let modelsLoaded = false;
-let cachedDescriptors = null;
 
 async function loadModelsOnce() {
   if (!modelsLoaded) {
@@ -16,19 +15,6 @@ async function loadModelsOnce() {
   }
 }
 
-function loadDescriptorsOnce() {
-  if (!cachedDescriptors) {
-    const descriptorPath = path.resolve('descriptors.json');
-    const descriptorData = fs.readFileSync(descriptorPath);
-    const parsed = JSON.parse(descriptorData);
-
-    cachedDescriptors = parsed.map(d => ({
-      filename: d.filename,
-      descriptor: new Float32Array(d.descriptor),
-    }));
-  }
-}
-
 async function resizeImage(image, width = 320, height = 320) {
   const { createCanvas } = canvas;
   const resizedCanvas = createCanvas(width, height);
@@ -37,35 +23,63 @@ async function resizeImage(image, width = 320, height = 320) {
   return resizedCanvas;
 }
 
+async function generateDescriptorFromImage(filePath) {
+  const img = await canvas.loadImage(filePath);
+  const resized = await resizeImage(img);
+  const detection = await faceapi
+    .detectSingleFace(resized, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (detection && detection.descriptor) {
+    return {
+      filename: path.basename(filePath),
+      descriptor: detection.descriptor,
+    };
+  }
+
+  return null;
+}
+
+async function loadAllStoredDescriptors() {
+  const directoryPath = path.resolve('uploads'); // folder with face images
+  const files = fs.readdirSync(directoryPath);
+  const descriptors = [];
+
+  for (const file of files) {
+    const ext = path.extname(file).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png'].includes(ext)) continue;
+
+    const fullPath = path.join(directoryPath, file);
+    const result = await generateDescriptorFromImage(fullPath);
+    if (result) descriptors.push(result);
+  }
+
+  return descriptors;
+}
+
 export async function compareWithAllUploadedImages(base64Image) {
-  await loadModelsOnce();    
-  loadDescriptorsOnce();    
+  await loadModelsOnce();
+  const knownDescriptors = await loadAllStoredDescriptors();
 
   const buffer = Buffer.from(base64Image, 'base64');
-  const capturedImage = await canvas.loadImage(buffer);
-  const resizedImage = await resizeImage(capturedImage, 320, 320);
-
-  const options = new faceapi.TinyFaceDetectorOptions({
-    inputSize: 160,         
-    scoreThreshold: 0.5,    
-  });
+  const uploadedImage = await canvas.loadImage(buffer);
+  const resizedImage = await resizeImage(uploadedImage, 320, 320);
 
   const capturedDetections = await faceapi
-    .detectAllFaces(resizedImage, options)
+    .detectAllFaces(resizedImage, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
     .withFaceLandmarks()
     .withFaceDescriptors();
 
   if (!capturedDetections || !capturedDetections.length) {
-    return { match: false, message: 'No faces detected in the image' };
+    return { match: false, message: 'No faces detected in the uploaded image' };
   }
 
   const results = [];
 
   for (const detection of capturedDetections) {
-    const capturedDescriptor = detection.descriptor;
-
-    for (const saved of cachedDescriptors) {
-      const distance = faceapi.euclideanDistance(capturedDescriptor, saved.descriptor);
+    for (const saved of knownDescriptors) {
+      const distance = faceapi.euclideanDistance(detection.descriptor, saved.descriptor);
       if (distance < 0.6) {
         results.push({
           match: true,
@@ -77,9 +91,9 @@ export async function compareWithAllUploadedImages(base64Image) {
     }
   }
 
-  if (results.length) {
+  if (results.length > 0) {
     return { match: true, matches: results };
   }
 
-  return { match: false, message: 'No matching faces found in the image' };
+  return { match: false, message: 'No matching faces found in the uploaded image' };
 }
