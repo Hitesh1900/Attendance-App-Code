@@ -24,7 +24,7 @@ export async function markAttendance(userId, latitude, longitude) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const distance = R * c;
 
-  if (distance > 50) throw new Error("User is not within the 50-meter range");
+  if (distance > 100) throw new Error("User is not within the 100-meter range");
 
   return await Attendance.create({ userId, latitude, longitude });
   

@@ -26,12 +26,12 @@ export const markAttendance = async (req, res) => {
 
     const nearbyLocation = officeLocations.find(loc => {
       const distance = getDistance(latitude, longitude, loc.lat, loc.lng);
-      return distance <= 50;
+      return distance <= 100;
     });
 
     if (!nearbyLocation) {
       return res.status(400).json({
-        error: "User is not within the 30-meter range of any office location"
+        error: "User is not within the 100-meter range of any office location"
       });
     }
 
