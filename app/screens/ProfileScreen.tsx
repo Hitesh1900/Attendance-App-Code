@@ -25,7 +25,7 @@ type Props = {
   route: { params: { userId: string } };
 };
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://attendance-app-code-production.up.railway.app';
 
 const ProfileScreen = ({ route }: Props) => {
   const { userId } = route.params;
@@ -36,7 +36,7 @@ const ProfileScreen = ({ route }: Props) => {
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
   const [editName, setEditName] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
+  const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
@@ -91,22 +91,27 @@ const ProfileScreen = ({ route }: Props) => {
 
   const handleChangePassword = async () => {
     const token = await AsyncStorage.getItem('authToken');
-    const response = await fetch(`${API_URL}/api/auth/change-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ userId, currentPassword, newPassword }),
-    });
+    try {
+      const response = await fetch(`${API_URL}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, oldPassword :oldPassword, newPassword : newPassword }),
+      });
 
-    if (response.ok) {
-      Alert.alert('Success', 'Password changed successfully');
-      setPasswordModalVisible(false);
-      setCurrentPassword('');
-      setNewPassword('');
-    } else {
-      Alert.alert('Error', 'Failed to change password');
+      if (response.ok) {
+        Alert.alert('Success', 'Password changed successfully');
+        setPasswordModalVisible(false);
+      } else {
+        const errorData = await response.json();
+        console.error('Error changing password:', errorData);
+          Alert.alert('Error', errorData.message || 'Failed to change password');
+        }
+
+    } catch (error) {
+      Alert.alert('Error', 'An error occurred while changing password');
     }
   };
 
@@ -231,8 +236,8 @@ const ProfileScreen = ({ route }: Props) => {
             <Text style={styles.modalTitle}>Change Password</Text>
             <TextInput
               placeholder="Current Password"
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
+              value={oldPassword}
+              onChangeText={setOldPassword}
               style={styles.input}
               secureTextEntry={true}
             />
@@ -244,10 +249,7 @@ const ProfileScreen = ({ route }: Props) => {
               secureTextEntry={true}
             />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#2563EB' }]}
-                onPress={handleChangePassword}
-              >
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#2563EB' }]} onPress={handleChangePassword}>
                 <Text style={{ color: '#FFF' }}>Update</Text>
               </TouchableOpacity>
               <TouchableOpacity

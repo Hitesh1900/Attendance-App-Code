@@ -1,0 +1,24 @@
+// Root project build.gradle (no android block here)
+buildscript {
+    ext {
+        buildToolsVersion = "33.0.0"
+        minSdkVersion = 21
+        compileSdkVersion = 33
+        targetSdkVersion = 33
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+    classpath("com.android.tools.build:gradle:8.0.2")
+    classpath("com.facebook.react:react-native-gradle-plugin:0.71.8") 
+}
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}

@@ -12,7 +12,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://attendance-app-code-production.up.railway.app';
 
 type RootStackParamList = {
   Attendance: { userId: string };

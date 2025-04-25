@@ -4,7 +4,7 @@ import axios from 'axios';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://attendance-app-code-production.up.railway.app';
 
 function RegisterScreen({ navigation }: any) {
   const [name, setName] = useState('');

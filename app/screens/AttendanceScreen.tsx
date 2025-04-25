@@ -1,13 +1,23 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {View,Text,Button,ActivityIndicator,StyleSheet,Platform,Image,} from 'react-native';
+import {
+  View,
+  Text,
+  Button,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  Image,
+} from 'react-native';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Camera } from 'expo-camera';
 import Webcam from 'react-webcam';
-import Canvas from 'react-native-canvas';
+import * as ImagePicker from 'expo-image-picker';
+import { CameraType } from 'expo-image-picker';
+
+
 
 type RootStackParamList = {
   Home: undefined;
@@ -19,13 +29,12 @@ type RootStackParamList = {
 
 type AttendanceScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://attendance-app-code-production.up.railway.app';
 
 const AttendanceScreen = () => {
   const navigation = useNavigation<AttendanceScreenNavigationProp>();
 
   const webcamRef = useRef<Webcam | null>(null);
-  const mobileCamRef = useRef<Camera | null>(null);
 
   const [userId, setUserId] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
@@ -35,10 +44,9 @@ const AttendanceScreen = () => {
   const [markingAttendance, setMarkingAttendance] = useState(false);
   const [attendanceMessage, setAttendanceMessage] = useState<string | null>(null);
   const [attendanceMarked, setAttendanceMarked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'Home' | 'History' | 'Profile'>('Home');
   const [photoTaken, setPhotoTaken] = useState<string | null>(null);
   const [cameraOpen, setCameraOpen] = useState<boolean>(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [activeTab, setActiveTab] = useState<'Home' | 'History' | 'Profile'>('Home');
 
   useEffect(() => {
     const init = async () => {
@@ -61,30 +69,50 @@ const AttendanceScreen = () => {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
       setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
 
-      if (Platform.OS !== 'web') {
-        const { status: camStatus } = await Camera.requestCameraPermissionsAsync();
-        setHasPermission(camStatus === 'granted');
-      }
-
       setLoading(false);
     };
 
     init();
   }, []);
 
-  const capturePhoto = async () => {
-    if (Platform.OS === 'web') {
-      const screenshot = webcamRef.current?.getScreenshot();
-      if (screenshot) setPhotoTaken(screenshot);
-    } else {
-      if (mobileCamRef.current) {
-        const photo = await mobileCamRef.current.takePictureAsync({ base64: true });
-        if (photo.base64) {
-          setPhotoTaken(`data:image/jpg;base64,${photo.base64}`);
-        }
-      }
+  const capturePhotoWeb = () => {
+    const screenshot = webcamRef.current?.getScreenshot();
+    if (screenshot) {
+      setPhotoTaken(screenshot);
+      setCameraOpen(false);
     }
   };
+
+  const capturePhotoMobile = async () => {
+    console.log('Opening camera...');
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      cameraType: ImagePicker.CameraType.front,
+    };
+
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    console.log('Camera permission status:', permission.status);
+    if (permission.status !== 'granted') {
+      console.log('Camera permission denied');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync(options);
+      console.log('Camera result:', result);
+
+      if (result?.canceled) {
+        console.log('User cancelled image picker');
+        setCameraOpen(false);
+      } else if (result.assets && result.assets.length > 0) {
+        setPhotoTaken(result.assets[0].uri);
+        setCameraOpen(false);
+      }
+    } catch (error) {
+      console.error('Error opening camera:', error);
+    }
+  };
+
   const handleCanvas = (canvas: any) => {
     if (canvas) {
       const ctx = canvas.getContext('2d');
@@ -92,10 +120,10 @@ const AttendanceScreen = () => {
         canvas.width = 320;
         canvas.height = 240;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height); 
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.strokeStyle = 'green';
         ctx.lineWidth = 4;
-        ctx.strokeRect(50, 50, 100, 100); 
+        ctx.strokeRect(50, 50, 100, 100);
       }
     }
   };
@@ -144,8 +172,6 @@ const AttendanceScreen = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${storedToken}`,
         },
-
-        
         body: JSON.stringify({
           userId: storedUserId,
           latitude: loc.coords.latitude,
@@ -195,45 +221,28 @@ const AttendanceScreen = () => {
           {cameraOpen && (
             <View style={{ alignItems: 'center', marginBottom: 10 }}>
               {Platform.OS === 'web' ? (
-                <Webcam
-                  ref={webcamRef}
-                  audio={false}
-                  height={240}
-                  width={320}
-                  screenshotFormat="image/jpeg"
-                  videoConstraints={{ facingMode: 'user' }}
-                />
-              ) : hasPermission ? (
-                <View style={{ position: 'relative', width: 300, height: 240 }}>
-                  <Camera
-                  ref={mobileCamRef}
-                  style={{ width: '100%', height: '100%' }}
-                  type={Camera.Constants.Type.front as keyof typeof Camera.Constants.Type}
+                <>
+                  <Webcam
+                    ref={webcamRef}
+                    audio={false}
+                    height={240}
+                    width={320}
+                    screenshotFormat="image/jpeg"
+                    videoConstraints={{ facingMode: 'user' }}
                   />
-                  <Canvas
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                  }}
-                  ref={(canvas: Canvas | null) => {
-                    if (canvas) handleCanvas(canvas);
-                  }}
+                  <Button
+                    title="Capture Photo"
+                    onPress={capturePhotoWeb}
+                    color="#0EA5E9"
                   />
-                </View>
+                </>
               ) : (
-                <Text>Camera permission not granted.</Text>
+                <Button
+                  title="Open Camera"
+                  onPress={capturePhotoMobile}
+                  color="#0EA5E9"
+                />
               )}
-              <Button
-                title="Capture Photo"
-                onPress={() => {
-                  capturePhoto();
-                  setCameraOpen(false);
-                }}
-                color="#0EA5E9"
-              />
             </View>
           )}
 
@@ -289,7 +298,7 @@ const AttendanceScreen = () => {
       )}
 
       <View style={styles.bottomNav}>
-        {(['Home', 'History', 'Profile'] as const).map(tab => (
+        {(['Home', 'History', 'Profile'] as const).map((tab) => (
           <View style={styles.iconContainer} key={tab}>
             <Ionicons
               name={

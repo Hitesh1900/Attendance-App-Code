@@ -14,7 +14,7 @@ type HomeScreenProps = {
   navigation: StackNavigationProp<RootStackParamList, 'Home'>;
 };
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://attendance-app-code-production.up.railway.app';
 
 function HomeScreen({ navigation }: HomeScreenProps) {
   const [email, setEmail] = useState('');
