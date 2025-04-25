@@ -42,7 +42,7 @@ async function generateDescriptorFromImage(filePath) {
 }
 
 async function loadAllStoredDescriptors() {
-  const directoryPath = path.resolve('uploads'); // folder with face images
+  const directoryPath = path.resolve('uploads');
   const files = fs.readdirSync(directoryPath);
   const descriptors = [];
 
