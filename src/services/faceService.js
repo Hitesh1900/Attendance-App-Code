@@ -12,7 +12,6 @@ async function loadModelsOnce() {
       faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH),
     ]);
     modelsLoaded = true;
-    console.log('✅ FaceAPI models loaded.');
   }
 }
 
@@ -24,24 +23,22 @@ async function resizeImage(image, width = 320, height = 320) {
   return resizedCanvas;
 }
 
-
 async function generateDescriptorFromFile(filePath) {
   const img = await canvas.loadImage(filePath);
   const resized = await resizeImage(img);
-  
+
   const detection = await faceapi
     .detectSingleFace(resized, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
     .withFaceLandmarks()
     .withFaceDescriptor();
 
-  if (detection?.descriptor) {
+  if (detection && detection.descriptor) {
     return {
       filename: path.basename(filePath),
       descriptor: Array.from(detection.descriptor),
     };
   }
 
-  console.warn(`⚠️ No face detected in ${filePath}`);
   return null;
 }
 
@@ -67,11 +64,10 @@ export async function generateAndSaveDescriptors() {
   console.log(`✅ Saved ${descriptors.length} face descriptors to descriptors.json`);
 }
 
-
 export async function compareWithAllUploadedImage(base64Image) {
   await loadModelsOnce();
 
-  const descriptorsPath = path.resolve('descriptors.json');
+  const descriptorsPath = 'descriptors.json';
 
   if (!fs.existsSync(descriptorsPath) || fs.statSync(descriptorsPath).size === 0) {
     console.log('⚠️ descriptors.json not found or empty. Generating now...');
@@ -82,7 +78,7 @@ export async function compareWithAllUploadedImage(base64Image) {
   const descriptorData = JSON.parse(rawData);
 
   if (!Array.isArray(descriptorData) || descriptorData.length === 0) {
-    throw new Error('❌ No face descriptors found even after generation. Please check the uploads folder.');
+    throw new Error('No face descriptors found even after generating. Please check the uploads folder.');
   }
 
   const knownDescriptors = descriptorData.map(d => ({
@@ -90,22 +86,21 @@ export async function compareWithAllUploadedImage(base64Image) {
     descriptor: new Float32Array(d.descriptor),
   }));
 
-  
   const buffer = Buffer.from(base64Image, 'base64');
   const uploadedImage = await canvas.loadImage(buffer);
-  const resizedImage = await resizeImage(uploadedImage);
+  const resizedImage = await resizeImage(uploadedImage, 320, 320);
 
   const capturedDetections = await faceapi
     .detectAllFaces(resizedImage, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
     .withFaceLandmarks()
-    .withFaceDescriptors();
+    .withFaceDescriptors();   // ✅ fixed here
 
-  if (!capturedDetections?.length) {
+  if (!capturedDetections || capturedDetections.length === 0) {
     return { match: false, message: 'No faces detected in the uploaded image' };
   }
 
   const results = [];
-  const matchThreshold = 0.45; 
+  const matchThreshold = 0.45; // you can tune this if needed
 
   for (const detection of capturedDetections) {
     for (const saved of knownDescriptors) {
