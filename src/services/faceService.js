@@ -23,9 +23,10 @@ async function resizeImage(image, width = 320, height = 320) {
   return resizedCanvas;
 }
 
-async function generateDescriptorFromImage(filePath) {
+async function generateDescriptorFromFile(filePath) {
   const img = await canvas.loadImage(filePath);
   const resized = await resizeImage(img);
+  
   const detection = await faceapi
     .detectSingleFace(resized, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
     .withFaceLandmarks()
@@ -34,14 +35,17 @@ async function generateDescriptorFromImage(filePath) {
   if (detection && detection.descriptor) {
     return {
       filename: path.basename(filePath),
-      descriptor: detection.descriptor,
+      descriptor: Array.from(detection.descriptor), 
     };
   }
 
   return null;
 }
 
-async function loadAllStoredDescriptors() {
+
+export async function generateAndSaveDescriptors() {
+  await loadModelsOnce();
+
   const directoryPath = path.resolve('uploads');
   const files = fs.readdirSync(directoryPath);
   const descriptors = [];
@@ -51,16 +55,38 @@ async function loadAllStoredDescriptors() {
     if (!['.jpg', '.jpeg', '.png'].includes(ext)) continue;
 
     const fullPath = path.join(directoryPath, file);
-    const result = await generateDescriptorFromImage(fullPath);
-    if (result) descriptors.push(result);
+    const descriptor = await generateDescriptorFromFile(fullPath);
+    if (descriptor) {
+      descriptors.push(descriptor);
+    }
   }
 
-  return descriptors;
+  fs.writeFileSync('descriptors.json', JSON.stringify(descriptors, null, 2));
+  console.log(`✅ Saved ${descriptors.length} face descriptors to descriptors.json`);
 }
 
-export async function compareWithAllUploadedImages(base64Image) {
+
+export async function compareWithAllUploadedImage(base64Image) {
   await loadModelsOnce();
-  const knownDescriptors = await loadAllStoredDescriptors();
+
+  const descriptorsPath = 'descriptors.json';
+
+  if (!fs.existsSync(descriptorsPath) || fs.statSync(descriptorsPath).size === 0) {
+    console.log('⚠️ descriptors.json not found or empty. Generating now...');
+    await generateAndSaveDescriptors();
+  }
+
+  const rawData = fs.readFileSync(descriptorsPath, 'utf-8');
+  const descriptorData = JSON.parse(rawData);
+
+  if (!Array.isArray(descriptorData) || descriptorData.length === 0) {
+    throw new Error('No face descriptors found even after generating. Please check the uploads folder.');
+  }
+
+  const knownDescriptors = descriptorData.map(d => ({
+    filename: d.filename,
+    descriptor: new Float32Array(d.descriptor),
+  }));
 
   const buffer = Buffer.from(base64Image, 'base64');
   const uploadedImage = await canvas.loadImage(buffer);
@@ -71,19 +97,19 @@ export async function compareWithAllUploadedImages(base64Image) {
     .withFaceLandmarks()
     .withFaceDescriptors();
 
-  if (!capturedDetections || !capturedDetections.length) {
+  if (!capturedDetections || capturedDetections.length === 0) {
     return { match: false, message: 'No faces detected in the uploaded image' };
   }
 
   const results = [];
+  const matchThreshold = 0.45;
 
   for (const detection of capturedDetections) {
     for (const saved of knownDescriptors) {
       const distance = faceapi.euclideanDistance(detection.descriptor, saved.descriptor);
-      if (distance < 0.6) {
+      if (distance < matchThreshold) {
         results.push({
           match: true,
-          message: `Face matched with ${saved.filename}`,
           matchedFile: saved.filename,
           distance,
         });

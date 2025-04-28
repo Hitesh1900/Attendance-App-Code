@@ -1,4 +1,4 @@
-import { compareWithAllUploadedImages } from '../services/faceService.js';
+import { compareWithAllUploadedImage } from '../services/faceService.js';
 
 export async function verifyFace(req, res) {
   try {
@@ -9,7 +9,7 @@ export async function verifyFace(req, res) {
     }
 
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
-    const result = await compareWithAllUploadedImages(base64Data);
+    const result = await compareWithAllUploadedImage(base64Data);
 
     const statusCode = result.match ? 200 : 404;
 
