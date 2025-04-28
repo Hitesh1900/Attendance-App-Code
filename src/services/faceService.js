@@ -77,6 +77,7 @@ export async function compareWithAllUploadedImage(base64Image) {
   const rawData = fs.readFileSync(descriptorsPath, 'utf-8');
   const descriptorData = JSON.parse(rawData);
 
+
   if (!Array.isArray(descriptorData) || descriptorData.length === 0) {
     throw new Error('No face descriptors found even after generating. Please check the uploads folder.');
   }
@@ -93,14 +94,14 @@ export async function compareWithAllUploadedImage(base64Image) {
   const capturedDetections = await faceapi
     .detectAllFaces(resizedImage, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }))
     .withFaceLandmarks()
-    .withFaceDescriptors();   // ✅ fixed here
+    .withFaceDescriptors();  
 
   if (!capturedDetections || capturedDetections.length === 0) {
     return { match: false, message: 'No faces detected in the uploaded image' };
   }
 
   const results = [];
-  const matchThreshold = 0.45; // you can tune this if needed
+  const matchThreshold = 0.45; 
 
   for (const detection of capturedDetections) {
     for (const saved of knownDescriptors) {
