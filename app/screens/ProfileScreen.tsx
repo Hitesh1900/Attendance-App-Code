@@ -98,7 +98,7 @@ const ProfileScreen = ({ route }: Props) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ userId, oldPassword :oldPassword, newPassword : newPassword }),
+        body: JSON.stringify({ userId, oldPassword : oldPassword, newPassword : newPassword }),
       });
 
       if (response.ok) {

@@ -16,6 +16,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import Webcam from 'react-webcam';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraType } from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 
 
@@ -97,35 +98,32 @@ const AttendanceScreen = () => {
       return;
     }
 
+    
     try {
-      const result = await ImagePicker.launchCameraAsync(options);
-      console.log('Camera result:', result);
+        setPhotoTaken(null); 
 
-      if (result?.canceled) {
-        console.log('User cancelled image picker');
-        setCameraOpen(false);
-      } else if (result.assets && result.assets.length > 0) {
-        setPhotoTaken(result.assets[0].uri);
-        setCameraOpen(false);
-      }
-    } catch (error) {
-      console.error('Error opening camera:', error);
-    }
-  };
+        const result = await ImagePicker.launchCameraAsync(options);
+  console.log('Camera result:', result);
 
-  const handleCanvas = (canvas: any) => {
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        canvas.width = 320;
-        canvas.height = 240;
+  if (result?.canceled) {
+    console.log('User cancelled image picker');
+    setCameraOpen(false);
+  } else if (result.assets && result.assets.length > 0) {
+    const uri = result.assets[0].uri;
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'green';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(50, 50, 100, 100);
-      }
-    }
+  
+    const base64Image = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    
+    setPhotoTaken(`data:image/jpeg;base64,${base64Image}`);
+    setCameraOpen(false);
+    console.log('Photo taken:', base64Image);
+  }
+   } catch (error) {
+       console.error('Error opening camera:', error);
+   }
   };
 
   const markAttendance = async () => {
